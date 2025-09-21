@@ -1,4 +1,9 @@
 import cv2
+import pyttsx3
+
+
+# Example of text to speech. Can be modified like https://pypi.org/project/pyttsx3/
+#pyttsx3.speak("Testing the speech to text")
 
 face_classifier = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
@@ -17,6 +22,8 @@ def detect_bounding_box(vid):
         cv2.rectangle(vid, (x, y), (x + w, y + h), (0, 255, 0), 4)
     return faces
 
+
+# TODO: Insert program control flow
 while True:
 
     result, video_frame = video_capture.read()  # read frames from the video
