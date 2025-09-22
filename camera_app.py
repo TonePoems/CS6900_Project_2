@@ -18,10 +18,56 @@ def speechToText(dur=3):
         return text
 
 # Take some string input and return a valid command for the camera app
+# top_left
+# top_right
+# bottom_left
+# bottom_right
+# center
 def textToCommand(text):
-    # TODO: Do any necessary processing to get text down to acceptable commands
-    command = text.lower()
-    return command
+    # The user will specify the position where they want their face using
+    # commands such as: "top left", "top right", "bottom left", "bottom
+    # right", and "center".
+    
+    text = text.lower()
+
+    aliasDict = {
+        "top": ["top", "upper"],
+        "bottom": ["bottom", "lower"],
+        "left": ["left"],
+        "right": ["right"],
+        "center": ["center", "central"]
+        }
+    
+    potential_command = []
+    # remove possible aliases
+    for word in text.split():
+        for key in aliasDict:
+            if word in aliasDict[key]:
+                potential_command.append(key)
+        
+    row, col = "", ""
+    for i in reversed(potential_command):  # reversed to give last commands priority
+        if i == "center":  # center is own command
+            return i
+        if (row == "") and ((i == "top") or (i == "bottom")):  # if no row has been selected and command specifies a row
+            row = i
+        if (col == "") and ((i == "left") or (i == "right")):  # if no col has been selected and command specifies a col
+            col = i
+
+        if (not row == "") and (not col == ""):  # if a row and column have been selected, return those values
+            return row + "_" + col
+
+    return ""  # error case
+
+
+# print("top_left: " + textToCommand("top left"))
+# print("top_left: " + textToCommand("left top"))
+# print("center: " + textToCommand("center"))
+# print("center: " + textToCommand("central"))
+# print("bottom_right: " + textToCommand("lower right"))
+# print("top_left: " + textToCommand("right left bottom top"))  # should take the last command in each axis
+#print("top_left: " + textToCommand("right no left and bottom no top"))  # should take the last command in each axis
+# print("center: " + textToCommand("top center"))
 
 # Demo speechToText capability, along with textToCommand
 # speechInput = speechToText()
