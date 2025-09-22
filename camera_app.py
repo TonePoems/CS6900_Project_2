@@ -1,9 +1,42 @@
 import cv2
 import pyttsx3
+import speech_recognition as sr
 
 
-# Example of text to speech. Can be modified like https://pypi.org/project/pyttsx3/
-#pyttsx3.speak("Testing the speech to text")
+# create a speech recognition object
+r = sr.Recognizer()
+
+# Use microphone to get input from a user
+# Optional arg for duration of audio length
+# Returns string of user's input
+def speechToText(dur=3):
+    with sr.Microphone() as source:
+        # read the audio data from the default microphone
+        audio_data = r.record(source, duration=dur)  # TODO: Adjust timing depending on flow of program
+        # convert speech to text
+        text = r.recognize_google(audio_data)
+        return text
+
+# Take some string input and return a valid command for the camera app
+def textToCommand(text):
+    # TODO: Do any necessary processing to get text down to acceptable commands
+    command = text.lower()
+    return command
+
+# Demo speechToText capability, along with textToCommand
+# speechInput = speechToText()
+# commandInput = textToCommand(speechInput)
+# print(speechInput)
+# print(commandInput)
+
+
+def textToSpeech(text):
+    # Turned into function to possibly use different, higher quality voice later
+    
+    pyttsx3.speak(text)  # Can be modified like https://pypi.org/project/pyttsx3/
+
+# Example of text to speech
+# textToSpeech("Testing the speech to text")
 
 face_classifier = cv2.CascadeClassifier(
     cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
