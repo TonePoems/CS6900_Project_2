@@ -1,4 +1,5 @@
 import cv2
+import math
 import pyttsx3
 import speech_recognition as sr
 
@@ -84,23 +85,37 @@ def textToSpeech(text):
 # Example of text to speech
 # textToSpeech("Testing the speech to text")
 
-face_classifier = cv2.CascadeClassifier(
-    cv2.data.haarcascades + "haarcascade_frontalface_default.xml"
-)
+
+face_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
+eyes_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
 
 video_capture = cv2.VideoCapture(0)  # 0 is default camera
 
 
-def detect_bounding_box(vid):
-    gray_image = cv2.cvtColor(vid, cv2.COLOR_BGR2GRAY)
+def detect_face(img, debug=False):
+    #gray_image = cv2.cvtColor(vid, cv2.COLOR_BGR2GRAY)
 
     # TODO: Have to pare down to just the one face we want to detect for simplifying control logic.
     # Decide how to pick the most prominent face
-    faces = face_classifier.detectMultiScale(gray_image, 1.1, 5, minSize=(40, 40))
-    for (x, y, w, h) in faces:
-        cv2.rectangle(vid, (x, y), (x + w, y + h), (0, 255, 0), 4)
+    faces = face_classifier.detectMultiScale(img, 1.1, 5, minSize=(40, 40))
+    if debug:
+        for (x, y, w, h) in faces:
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 4)
     return faces
 
+
+# detect the eyes of a given image and face
+def detect_eyes(img, face, debug=False):
+    (x, y, w, h) = face
+
+    eyes = eyes_classifier.detectMultiScale(img[y:y + h, x:x + w], scaleFactor=1.1, minNeighbors=5)
+    if debug:
+        for (ex, ey, ew, eh) in eyes:
+            cv2.rectangle(img, (x + ex, y + ey), (x + ex + ew, y + ey + eh), (255, 255, 255), 1)
+    return eyes
+
+
+debug = True  # TODO: Make more formal debug or tie into verbal commands to turn on/off
 
 # TODO: Insert program control flow
 while True:
@@ -109,13 +124,34 @@ while True:
     if result is False:
         break  # terminate the loop if the frame is not read successfully
 
-    faces = detect_bounding_box(
-        video_frame
-    )  # apply the function we created to the video frame
+    faces = detect_face(video_frame, debug)
+    # TODO: Could filter to the highest confidence/largest face to get only one face
 
-    cv2.imshow(
-        "Camera Application", video_frame
-    )  # display the processed frame in a window named "My Face Detection Project"
+    if (len(faces) > 0):  # only get eyes if there is a face detected
+        face = faces[0]  # pare down to the first face
+        eyes = detect_eyes(video_frame, face, debug)  
+
+        if (len(eyes) == 2):
+            left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])  # ensure consistant order of eyes
+            deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
+
+            if debug:
+                # Draw angle on face
+                (x, y, w, h) = face
+                center_x, center_y = (x + w/2), (y + h/2)  # position at center of face
+
+                x_diff = h/2 * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
+                y_diff = h/2 * math.sin(deg+90 * math.pi / 180.0)
+                # Draw out lines up and down from the center point
+                p1_x = center_x + x_diff
+                p1_y = center_y + y_diff
+                p2_x = center_x - x_diff
+                p2_y = center_y - y_diff
+                #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
+                cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
+    
+
+    cv2.imshow("Camera Application", video_frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
         break
