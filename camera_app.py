@@ -92,27 +92,30 @@ eyes_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye
 video_capture = cv2.VideoCapture(0)  # 0 is default camera
 
 
-def detect_face(img):
+def detect_face(img, debug=False):
     #gray_image = cv2.cvtColor(vid, cv2.COLOR_BGR2GRAY)
 
     # TODO: Have to pare down to just the one face we want to detect for simplifying control logic.
     # Decide how to pick the most prominent face
     faces = face_classifier.detectMultiScale(img, 1.1, 5, minSize=(40, 40))
-    for (x, y, w, h) in faces:
-        cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 4)
+    if debug:
+        for (x, y, w, h) in faces:
+            cv2.rectangle(img, (x, y), (x + w, y + h), (0, 255, 0), 4)
     return faces
 
 
 # detect the eyes of a given image and face
-def detect_eyes(img, face):
+def detect_eyes(img, face, debug=False):
     (x, y, w, h) = face
 
     eyes = eyes_classifier.detectMultiScale(img[y:y + h, x:x + w], scaleFactor=1.1, minNeighbors=5)
-    count = 1
-    for (ex, ey, ew, eh) in eyes:
-        cv2.rectangle(img, (x + ex, y + ey), (x + ex + ew, y + ey + eh), (255, 255, 255), 1)
+    if debug:
+        for (ex, ey, ew, eh) in eyes:
+            cv2.rectangle(img, (x + ex, y + ey), (x + ex + ew, y + ey + eh), (255, 255, 255), 1)
     return eyes
 
+
+debug = True  # TODO: Make more formal debug or tie into verbal commands to turn on/off
 
 # TODO: Insert program control flow
 while True:
@@ -121,25 +124,33 @@ while True:
     if result is False:
         break  # terminate the loop if the frame is not read successfully
 
-    faces = detect_face(video_frame)
+    faces = detect_face(video_frame, debug)
     # TODO: Could filter to the highest confidence/largest face to get only one face
 
     if (len(faces) > 0):  # only get eyes if there is a face detected
         face = faces[0]  # pare down to the first face
-        eyes = detect_eyes(video_frame, face)  
+        eyes = detect_eyes(video_frame, face, debug)  
 
         if (len(eyes) == 2):
-            deg = math.atan2((eyes[0][1] - eyes[1][1]), (eyes[0][0] - eyes[1][0]))
+            left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])  # ensure consistant order of eyes
+            deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
 
-            # Draw angle on face
-            (x, y, w, h) = face
-            p1_x, p1_y = (x + w/2), (y + h/2)
+            if debug:
+                # Draw angle on face
+                (x, y, w, h) = face
+                p1_x, p1_y = (x + w/2), (y + h/2)
 
-            p2_x = p1_x + h * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
-            p2_y = p1_y + h * math.sin(deg+90 * math.pi / 180.0)
-            #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
-            cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
-            #print(f'atan2: {deg}')
+                x_diff = h/2 * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
+                y_diff = h/2 * math.sin(deg+90 * math.pi / 180.0)
+                p2_x = p1_x + x_diff
+                p2_y = p1_y + y_diff
+                #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
+                cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)                
+                p2_x = p1_x - x_diff
+                p2_y = p1_y - y_diff
+                #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
+                cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
+                #print(f'atan2: {deg}')
     
 
     cv2.imshow("Camera Application", video_frame)
