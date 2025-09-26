@@ -115,6 +115,63 @@ def detect_eyes(img, face, debug=False):
     return eyes
 
 
+def draw_top_left_box(img):
+    w = img.shape[1]
+    h = img.shape[0]
+    center_x = int(w/2)
+    center_y = int(h/2)
+    cv2.rectangle(img, (0, 0), (center_x, center_y), (255, 255, 255), 2)
+
+
+def draw_top_right_box(img):
+    w = img.shape[1]
+    h = img.shape[0]
+    center_x = int(w/2)
+    center_y = int(h/2)
+    cv2.rectangle(img, (center_x, 0), (w, center_y), (255, 255, 255), 2)
+
+
+def draw_bottom_left_box(img):
+    w = img.shape[1]
+    h = img.shape[0]
+    center_x = int(w/2)
+    center_y = int(h/2)
+    cv2.rectangle(img, (0, center_y), (center_x, h), (255, 255, 255), 2)
+
+
+def draw_bottom_right_box(img):
+    w = img.shape[1]
+    h = img.shape[0]
+    center_x = int(w/2)
+    center_y = int(h/2)
+    cv2.rectangle(img, (center_x, center_y), (w, h), (255, 255, 255), 2)
+
+
+def draw_center_box(img):
+    w = img.shape[1]
+    h = img.shape[0]
+    center_x = int(w/2)
+    center_y = int(h/2)
+    quarter_x = int(center_x/2)
+    quarter_y = int(center_y/2)
+    cv2.rectangle(img, (quarter_x,quarter_y), (center_x+quarter_x, center_y+quarter_y), (255, 255, 255), 2)
+
+
+# boxes with fake overlap for cleaner overlay
+def draw_all_boxes(img):
+    w = img.shape[1]
+    h = img.shape[0]
+    center_x = int(w/2)
+    center_y = int(h/2)
+    quarter_x = int(center_x/2)
+    quarter_y = int(center_y/2)
+    cv2.rectangle(img, (quarter_x,quarter_y), (center_x+quarter_x, center_y+quarter_y), (255, 255, 255), 2)  # center box
+    cv2.line(video_frame,(center_x, 0),(center_x, quarter_y),(255, 255, 255), 2)  # top line
+    cv2.line(video_frame,(center_x, h),(center_x, center_y+quarter_y),(255, 255, 255), 2)  # bottom line
+    cv2.line(video_frame,(0, center_y),(quarter_x, center_y),(255, 255, 255), 2)  # left line
+    cv2.line(video_frame,(w, center_y),(center_x+quarter_x, center_y),(255, 255, 255), 2)  # right line
+
+
 debug = True  # TODO: Make more formal debug or tie into verbal commands to turn on/off
 
 # TODO: Insert program control flow
@@ -129,15 +186,14 @@ while True:
 
     if (len(faces) > 0):  # only get eyes if there is a face detected
         face = faces[0]  # pare down to the first face
+        (x, y, w, h) = face
         eyes = detect_eyes(video_frame, face, debug)  
 
         if (len(eyes) == 2):
             left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])  # ensure consistant order of eyes
             deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
 
-            if debug:
-                # Draw angle on face
-                (x, y, w, h) = face
+            if debug:  # Draw facial rotation
                 center_x, center_y = (x + w/2), (y + h/2)  # position at center of face
 
                 x_diff = h/2 * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
@@ -150,6 +206,14 @@ while True:
                 #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
                 cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
     
+
+    # draw_top_left_box(video_frame)
+    # draw_top_right_box(video_frame)
+    # draw_bottom_left_box(video_frame)
+    # draw_bottom_right_box(video_frame)
+    # draw_center_box(video_frame)
+    # TODO: Draw all boxes until a specific one is chosen and then display that box only
+    draw_all_boxes(video_frame)
 
     cv2.imshow("Camera Application", video_frame)
 
