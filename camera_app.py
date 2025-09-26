@@ -157,6 +157,21 @@ def draw_center_box(img):
     cv2.rectangle(img, (quarter_x,quarter_y), (center_x+quarter_x, center_y+quarter_y), (255, 255, 255), 2)
 
 
+# boxes with fake overlap for cleaner overlay
+def draw_all_boxes(img):
+    w = img.shape[1]
+    h = img.shape[0]
+    center_x = int(w/2)
+    center_y = int(h/2)
+    quarter_x = int(center_x/2)
+    quarter_y = int(center_y/2)
+    cv2.rectangle(img, (quarter_x,quarter_y), (center_x+quarter_x, center_y+quarter_y), (255, 255, 255), 2)  # center box
+    cv2.line(video_frame,(center_x, 0),(center_x, quarter_y),(255, 255, 255), 2)  # top line
+    cv2.line(video_frame,(center_x, h),(center_x, center_y+quarter_y),(255, 255, 255), 2)  # bottom line
+    cv2.line(video_frame,(0, center_y),(quarter_x, center_y),(255, 255, 255), 2)  # left line
+    cv2.line(video_frame,(w, center_y),(center_x+quarter_x, center_y),(255, 255, 255), 2)  # right line
+
+
 debug = True  # TODO: Make more formal debug or tie into verbal commands to turn on/off
 
 # TODO: Insert program control flow
@@ -192,11 +207,13 @@ while True:
                 cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
     
 
-    draw_top_left_box(video_frame)
-    draw_top_right_box(video_frame)
-    draw_bottom_left_box(video_frame)
-    draw_bottom_right_box(video_frame)
-    draw_center_box(video_frame)
+    # draw_top_left_box(video_frame)
+    # draw_top_right_box(video_frame)
+    # draw_bottom_left_box(video_frame)
+    # draw_bottom_right_box(video_frame)
+    # draw_center_box(video_frame)
+    # TODO: Draw all boxes until a specific one is chosen and then 
+    draw_all_boxes(video_frame)
 
     cv2.imshow("Camera Application", video_frame)
 
