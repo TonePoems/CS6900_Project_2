@@ -1,4 +1,6 @@
+import copy
 import cv2
+import datetime
 import math
 import pyttsx3
 import speech_recognition as sr
@@ -172,12 +174,20 @@ def draw_all_boxes(img):
     cv2.line(video_frame,(w, center_y),(center_x+quarter_x, center_y),(255, 255, 255), 2)  # right line
 
 
+def save_photo(img, aux_text):
+    date_time = datetime.datetime.now().strftime('%Y%m%d_%H-%M-%S')
+    title = f'./output/{date_time}_{aux_text}.png'
+    #print(title)
+    cv2.imwrite(title, img)
+
+
 debug = True  # TODO: Make more formal debug or tie into verbal commands to turn on/off
 
 # TODO: Insert program control flow
 while True:
 
     result, video_frame = video_capture.read()  # read frames from the video
+    original_video_frame = copy.deepcopy(video_frame)  # save off frame for plain image
     if result is False:
         break  # terminate the loop if the frame is not read successfully
 
@@ -218,6 +228,8 @@ while True:
     cv2.imshow("Camera Application", video_frame)
 
     if cv2.waitKey(1) & 0xFF == ord("q"):
+        save_photo(original_video_frame, 'plain')
+        save_photo(video_frame, 'markup')
         break
 
 video_capture.release()
