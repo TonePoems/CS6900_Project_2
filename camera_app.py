@@ -212,7 +212,7 @@ while True:
     # draw_bottom_left_box(video_frame)
     # draw_bottom_right_box(video_frame)
     # draw_center_box(video_frame)
-    # TODO: Draw all boxes until a specific one is chosen and then 
+    # TODO: Draw all boxes until a specific one is chosen and then display that box only
     draw_all_boxes(video_frame)
 
     cv2.imshow("Camera Application", video_frame)
