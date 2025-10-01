@@ -230,7 +230,7 @@ def main_application():
     """This function runs the main application workflow with background listening."""
     global target_command
     
-    # --- 1. SETUP AND INITIALIZATION ---
+    # 1. SETUP AND INITIALIZATION
     video_capture = cv2.VideoCapture(0)
     if not video_capture.isOpened():
         textToSpeech("Error: Cannot open camera.")
@@ -245,7 +245,7 @@ def main_application():
     quadrants = { "top_left": (0, 0, width // 2, height // 2), "top_right": (width // 2, 0, width, height // 2), "bottom_left": (0, height // 2, width // 2, height), "bottom_right": (width // 2, height // 2, width, height), "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4) }
     draw_box_functions = { "top_left": draw_top_left_box, "top_right": draw_top_right_box, "bottom_left": draw_bottom_left_box, "bottom_right": draw_bottom_right_box, "center": draw_center_box }
 
-    # --- 2. START BACKGROUND LISTENING ---
+    # 2. START BACKGROUND LISTENING
     microphone = sr.Microphone()
     # Adjust for ambient noise once, then let the background listener take over
     with microphone as source:
@@ -256,7 +256,7 @@ def main_application():
 
     textToSpeech("The camera is on. Please say a command like 'center' or 'top left'.")
     
-    # --- 3. MAIN APPLICATION LOOP ---
+    # 3. MAIN APPLICATION LOOP
     last_guidance_time = 0
     
     while True:
@@ -317,7 +317,7 @@ def main_application():
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-    # --- CLEANUP ---
+    # CLEANUP
     stop_listening(wait_for_stop=False) # Stop the background listener
     video_capture.release()
     cv2.destroyAllWindows()
