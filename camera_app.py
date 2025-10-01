@@ -203,130 +203,129 @@ def save_photo(img, aux_text):
 
 
 
+
+
+# We need a global variable to hold the command from the background thread
+target_command = ""
+
+def command_callback(recognizer, audio):
+    """
+    This function is called in the background when speech is detected.
+    """
+    global target_command
+    try:
+        # We got audio, now we recognize it
+        speech = recognizer.recognize_google(audio)
+        print(f"I heard you say: '{speech}'")
+        command = textToCommand(speech)
+        if command:
+            target_command = command # Set the global command variable
+    except sr.UnknownValueError:
+        textToSpeech("I could not understand that. Please say a command again")
+    except sr.RequestError as e:
+        textToSpeech(f"Sorry the Speech service is unavailable; {e}")
+
+
 def main_application():
-    """This function runs the main application workflow."""
+    """This function runs the main application workflow with background listening."""
+    global target_command
     
-    # 1. SETUP AND INITIALIZATION 
+    # --- 1. SETUP AND INITIALIZATION ---
     video_capture = cv2.VideoCapture(0)
     if not video_capture.isOpened():
-        print("Error: Cannot open camera.")
+        textToSpeech("Error: Cannot open camera.")
         return
         
-    # Gives the camera a moment to initialize
     time.sleep(2)
     
-    # Get the actual width and height from the camera
     width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
-    # Define the target quadrants using coordinates: (x1, y1, x2, y2)
-    quadrants = {
-        "top_left": (0, 0, width // 2, height // 2),
-        "top_right": (width // 2, 0, width, height // 2),
-        "bottom_left": (0, height // 2, width // 2, height),
-        "bottom_right": (width // 2, height // 2, width, height),
-        "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4)
-    }
-    
-    # Map command names to the functions that draw their boxes
-    draw_box_functions = {
-        "top_left": draw_top_left_box,
-        "top_right": draw_top_right_box,
-        "bottom_left": draw_bottom_left_box,
-        "bottom_right": draw_bottom_right_box,
-        "center": draw_center_box
-    }
-    
-    # 2. GET THE USER'S TARGET POSITION 
-    target_command = ""
-    while not target_command:
-        textToSpeech("Where would you like your face? For example: say top left, or center.")
-        user_speech = speechToText()
-        print(f"I heard you say: '{user_speech}'")
-        target_command = textToCommand(user_speech)
-        
-        if not target_command:
-            textToSpeech("I did not understand. Please try again.")
+    # (quadrants and draw_box_functions dictionaries remain the same)
+    quadrants = { "top_left": (0, 0, width // 2, height // 2), "top_right": (width // 2, 0, width, height // 2), "bottom_left": (0, height // 2, width // 2, height), "bottom_right": (width // 2, height // 2, width, height), "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4) }
+    draw_box_functions = { "top_left": draw_top_left_box, "top_right": draw_top_right_box, "bottom_left": draw_bottom_left_box, "bottom_right": draw_bottom_right_box, "center": draw_center_box }
 
-    textToSpeech(f"Okay, let's get you to the {target_command.replace('_', ' ')} position.")
-    target_rect = quadrants[target_command]
+    # --- 2. START BACKGROUND LISTENING ---
+    microphone = sr.Microphone()
+    # Adjust for ambient noise once, then let the background listener take over
+    with microphone as source:
+        r.adjust_for_ambient_noise(source, duration=1)
     
-    # 3. START THE GUIDANCE AND CAPTURE LOOP
+    # This starts a separate thread that now has full control of the microphone
+    stop_listening = r.listen_in_background(microphone, command_callback)
+
+    textToSpeech("The camera is on. Please say a command like 'center' or 'top left'.")
+    
+    # --- 3. MAIN APPLICATION LOOP ---
     last_guidance_time = 0
+    
     while True:
         result, video_frame = video_capture.read()
         if not result:
             break
             
-        # Flip the frame to act like a mirror, which is more intuitive
         video_frame = cv2.flip(video_frame, 1)
         original_frame_for_photo = copy.deepcopy(video_frame)
 
-        # Display ONLY the correct box for the chosen command
-        draw_box_functions[target_command](video_frame)
-
-        faces = detect_face(video_frame)
-        
-        if len(faces) > 0:
-            # Focus on the first face found
-            face = faces[0]
-            (x, y, w, h) = face
-            face_center_x = x + w // 2
-            face_center_y = y + h // 2
-
-            # Check if the user is facing the camera (requires 2 eyes)
-            eyes = detect_eyes(video_frame, face)
-            is_facing_forward = len(eyes) >= 2
-
-            # Check if the face's center is inside the target box
-            (x1, y1, x2, y2) = target_rect
-            is_in_position = (x1 < face_center_x < x2) and (y1 < face_center_y < y2)
-
-            #  SUCCESS CONDITION 
-            if is_in_position and is_facing_forward:
-                textToSpeech("Perfect, hold still!")
-                save_photo(original_frame_for_photo, target_command)
-                textToSpeech("Photo taken! You can now close the window.")
-                time.sleep(2) # Give user time to hear the message
-                break # Exit the loop!
-            
-            #  GUIDANCE LOGIC 
-            # Only give a new instruction every 2 seconds to avoid spam
-            elif time.time() - last_guidance_time > 2:
-                guidance_message = ""
-                if face_center_y < y1: guidance_message += "Move down. "
-                elif face_center_y > y2: guidance_message += "Move up. "
-                
-                if face_center_x < x1: guidance_message += "Move to your right. "
-                elif face_center_x > x2: guidance_message += "Move to your left. "
-
-                if not is_facing_forward:
-                    guidance_message = "Please face the camera directly."
-
-                if guidance_message:
-                    textToSpeech(guidance_message)
-                    last_guidance_time = time.time()
-        
+        # The loop now checks if the background listener has set a command
+        if not target_command:
+            # STATE 1: WAITING FOR A COMMAND (but video is running)
+            draw_all_boxes(video_frame) 
+            cv2.putText(video_frame, "Listening for a command...", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         else:
-            # Give feedback if no face is found
-            if time.time() - last_guidance_time > 5:
-                 textToSpeech("I can't see your face. Please move in front of the camera.")
-                 last_guidance_time = time.time()
+            # STATE 2: GUIDING THE USER
+            if 'first_guidance' not in locals():
+                textToSpeech(f"Great. Moving to the {target_command.replace('_', ' ')} position.")
+                first_guidance = True # Ensure this welcome message is only spoken once
+
+            # (The rest of the guidance logic is the same as before)
+            target_rect = quadrants[target_command]
+            draw_box_functions[target_command](video_frame)
+            faces = detect_face(video_frame)
+            if len(faces) > 0:
+                face = faces[0]
+                is_in_position = (target_rect[0] < (face[0] + face[2] // 2) < target_rect[2]) and (target_rect[1] < (face[1] + face[3] // 2) < target_rect[3])
+                eyes = detect_eyes(video_frame, face)
+                is_looking_forward = len(eyes) >= 2
+                is_face_straight = False
+                if is_looking_forward:
+                    left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
+                    deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
+                    if abs(deg) < 0.2:
+                        is_face_straight = True
+                
+                if is_in_position and is_looking_forward and is_face_straight:
+                    textToSpeech("Perfect, hold still!")
+                    save_photo(original_frame_for_photo, target_command)
+                    textToSpeech("Photo taken!")
+                    break
+                
+                elif time.time() - last_guidance_time > 2:
+                    guidance_message = ""
+                    if not is_in_position:
+                         if (face[1] + face[3] // 2) < target_rect[1]: guidance_message += "Move down. "
+                         elif (face[1] + face[3] // 2) > target_rect[3]: guidance_message += "Move up. "
+                         if (face[0] + face[2] // 2) < target_rect[0]: guidance_message += "Move to your right. "
+                         elif (face[0] + face[2] // 2) > target_rect[2]: guidance_message += "Move to your left. "
+                    elif not is_looking_forward: guidance_message = "Please face the camera."
+                    elif not is_face_straight: guidance_message = "Please level your head."
+                    if guidance_message:
+                        textToSpeech(guidance_message)
+                        last_guidance_time = time.time()
 
         cv2.imshow("Selfie Helper", video_frame)
-
-        # Allow user to quit manually by pressing 'q'
         if cv2.waitKey(1) & 0xFF == ord("q"):
             break
 
-    # 4. CLEANUP 
+    # --- CLEANUP ---
+    stop_listening(wait_for_stop=False) # Stop the background listener
     video_capture.release()
     cv2.destroyAllWindows()
 
-
-# This line makes sure the main_application() function runs when you execute the script
+# This is needed to run the main application
 if __name__ == "__main__":
-    # Initialize the engine once for the initial prompt
-    pyttsx3.init().runAndWait() 
     main_application()
+
+
+
 
