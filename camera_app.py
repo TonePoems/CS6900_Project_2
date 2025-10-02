@@ -6,6 +6,9 @@ import pyttsx3
 import speech_recognition as sr
 import time # We'll need this to avoid spamming the user with guidance
 
+# Create a single, shared text-to-speech engine for the whole app
+engine = pyttsx3.init()
+
 # create a speech recognition object
 r = sr.Recognizer()
 
@@ -102,8 +105,19 @@ def textToCommand(text):
 
 def textToSpeech(text):
     # Turned into function to possibly use different, higher quality voice later
-    
-    pyttsx3.speak(text)  # Can be modified like https://pypi.org/project/pyttsx3/
+    """Converts text to speech using the shared engine, preventing conflicts."""
+    print(f"SPEAKING: {text}")
+    try:
+        # Stop any speech that's currently happening
+        engine.stop()
+        # Queue up the new text to be spoken
+        engine.say(text)
+        # Process the speech command and wait for it to finish
+        engine.runAndWait()
+    except RuntimeError:
+        # This can happen in rare cases, just ignore it to prevent a crash
+        pass
+    #pyttsx3.speak(text)  # Can be modified like https://pypi.org/project/pyttsx3/
 
 # Example of text to speech
 # textToSpeech("Testing the speech to text")
