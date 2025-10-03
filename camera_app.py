@@ -35,13 +35,6 @@ def speechToText(dur=3):
         except sr.WaitTimeoutError:
             print("Listening timed out while waiting for phrase to start")
             return ""
-    # with sr.Microphone() as source:
-        # read the audio data from the default microphone
-       # audio_data = r.record(source, duration=dur)  # TODO: Adjust timing depending on flow of program
-        # convert speech to text
-        # text = r.recognize_google(audio_data)
-       # return text #
-
 
 
 # Take some string input and return a valid command for the camera app
@@ -249,15 +242,27 @@ def main_application():
     if not video_capture.isOpened():
         textToSpeech("Error: Cannot open camera.")
         return
-        
-    time.sleep(2)
     
+    time.sleep(2)
+
     width = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
     # (quadrants and draw_box_functions dictionaries remain the same)
-    quadrants = { "top_left": (0, 0, width // 2, height // 2), "top_right": (width // 2, 0, width, height // 2), "bottom_left": (0, height // 2, width // 2, height), "bottom_right": (width // 2, height // 2, width, height), "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4) }
-    draw_box_functions = { "top_left": draw_top_left_box, "top_right": draw_top_right_box, "bottom_left": draw_bottom_left_box, "bottom_right": draw_bottom_right_box, "center": draw_center_box }
+    quadrants = { 
+        "top_left": (0, 0, width // 2, height // 2), 
+        "top_right": (width // 2, 0, width, height // 2), 
+        "bottom_left": (0, height // 2, width // 2, height), 
+        "bottom_right": (width // 2, height // 2, width, height), 
+        "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4) 
+        }
+    draw_box_functions = { 
+        "top_left": draw_top_left_box, 
+        "top_right": draw_top_right_box, 
+        "bottom_left": draw_bottom_left_box, 
+        "bottom_right": draw_bottom_right_box, 
+        "center": draw_center_box 
+        }
 
     # 2. START BACKGROUND LISTENING
     microphone = sr.Microphone()
@@ -288,6 +293,8 @@ def main_application():
             cv2.putText(video_frame, "Listening for a command...", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
         else:
             # STATE 2: GUIDING THE USER
+            stop_listening(wait_for_stop=False) # Stop the background listener  # stop listening for speech
+
             if 'first_guidance' not in locals():
                 textToSpeech(f"Great. Moving to the {target_command.replace('_', ' ')} position.")
                 first_guidance = True # Ensure this welcome message is only spoken once
@@ -332,7 +339,6 @@ def main_application():
             break
 
     # CLEANUP
-    stop_listening(wait_for_stop=False) # Stop the background listener
     video_capture.release()
     cv2.destroyAllWindows()
 
