@@ -307,15 +307,14 @@ def main_application():
                 face = faces[0]
                 is_in_position = (target_rect[0] < (face[0] + face[2] // 2) < target_rect[2]) and (target_rect[1] < (face[1] + face[3] // 2) < target_rect[3])
                 eyes = detect_eyes(video_frame, face)
-                is_looking_forward = len(eyes) >= 2
                 is_face_straight = False
-                if is_looking_forward:
-                    left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
+                if len(eyes) == 2:
+                    left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])  # Get consistent order of eyes to not switch sign of roll
                     deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
                     if abs(deg) < 0.2:
                         is_face_straight = True
                 
-                if is_in_position and is_looking_forward and is_face_straight:
+                if is_in_position and is_face_straight:
                     textToSpeech("Perfect, hold still!")
                     save_photo(original_frame_for_photo, target_command)
                     textToSpeech("Photo taken!")
