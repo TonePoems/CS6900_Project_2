@@ -327,8 +327,9 @@ def main_application():
                          elif (face[1] + face[3] // 2) > target_rect[3]: guidance_message += "Move up. "
                          if (face[0] + face[2] // 2) < target_rect[0]: guidance_message += "Move to your right. "
                          elif (face[0] + face[2] // 2) > target_rect[2]: guidance_message += "Move to your left. "
-                    elif not is_looking_forward: guidance_message = "Please face the camera."
-                    elif not is_face_straight: guidance_message = "Please level your head."
+                    elif not is_face_straight: 
+                        if deg < 0: guidance_message = "Please tilt your head right."
+                        else: guidance_message = "Please tilt your head left."
                     if guidance_message:
                         textToSpeech(guidance_message)
                         last_guidance_time = time.time()
