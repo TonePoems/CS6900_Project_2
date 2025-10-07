@@ -6,9 +6,6 @@ import pyttsx3
 import speech_recognition as sr
 import time # We'll need this to avoid spamming the user with guidance
 
-# Create a single, shared text-to-speech engine for the whole app
-engine = pyttsx3.init()
-
 # create a speech recognition object
 r = sr.Recognizer()
 
@@ -98,11 +95,9 @@ def textToCommand(text):
 
 def textToSpeech(text):
     # Turned into function to possibly use different, higher quality voice later
-    """Converts text to speech using the shared engine, preventing conflicts."""
     print(f"SPEAKING: {text}")
     try:
-        # Stop any speech that's currently happening
-        engine.stop()
+        engine = pyttsx3.init()
         # Queue up the new text to be spoken
         engine.say(text)
         # Process the speech command and wait for it to finish
@@ -263,6 +258,9 @@ def main_application():
         "bottom_right": draw_bottom_right_box, 
         "center": draw_center_box 
         }
+    
+    
+    textToSpeech("The camera is on. Please say a command like 'center' or 'top left'.")
 
     # 2. START BACKGROUND LISTENING
     microphone = sr.Microphone()
@@ -273,8 +271,6 @@ def main_application():
     # This starts a separate thread that now has full control of the microphone
     stop_listening = r.listen_in_background(microphone, command_callback)
 
-    textToSpeech("The camera is on. Please say a command like 'center' or 'top left'.")
-    
     # 3. MAIN APPLICATION LOOP
     last_guidance_time = 0
     
@@ -308,10 +304,11 @@ def main_application():
                 is_in_position = (target_rect[0] < (face[0] + face[2] // 2) < target_rect[2]) and (target_rect[1] < (face[1] + face[3] // 2) < target_rect[3])
                 eyes = detect_eyes(video_frame, face)
                 is_face_straight = False
+                deg = None  
                 if len(eyes) == 2:
                     left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])  # Get consistent order of eyes to not switch sign of roll
                     deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
-                    if abs(deg) < 0.2:
+                    if abs(deg) < 0.15:
                         is_face_straight = True
                 
                 if is_in_position and is_face_straight:
@@ -327,7 +324,7 @@ def main_application():
                          elif (face[1] + face[3] // 2) > target_rect[3]: guidance_message += "Move up. "
                          if (face[0] + face[2] // 2) < target_rect[0]: guidance_message += "Move to your right. "
                          elif (face[0] + face[2] // 2) > target_rect[2]: guidance_message += "Move to your left. "
-                    elif not is_face_straight: 
+                    elif (not is_face_straight) and (not deg is None): 
                         if deg < 0: guidance_message = "Please tilt your head right."
                         else: guidance_message = "Please tilt your head left."
                     if guidance_message:
