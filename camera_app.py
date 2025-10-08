@@ -1,12 +1,10 @@
 import copy
 import cv2
 import datetime
-
 import math
 import speech_recognition as sr
 import time
 import subprocess
-
 
 # create a speech recognition object
 r = sr.Recognizer()
@@ -21,7 +19,7 @@ last_speech_time = 0
 def speechToText(dur=3):
     with sr.Microphone() as source:
         # read the audio data from the default microphone
-        audio_data = r.record(source, duration=dur)  # TODO: Adjust timing depending on flow of program
+        audio_data = r.record(source, duration=dur)  
         # convert speech to text
         text = r.recognize_google(audio_data)
         return text
@@ -84,8 +82,9 @@ def textToCommand(text):
 # print(speechInput)
 # print(commandInput)
 
+
 def textToSpeech(text):
-     """Uses a non-blocking PowerShell command to speak text without freezing the app."""
+     #"""Uses a non-blocking PowerShell command to speak text without freezing the app."""
      global last_speech_time
      print(f"SAYING: {text}")
      text = text.replace("'", "''")
@@ -98,7 +97,7 @@ def textToSpeech(text):
      last_speech_time = time.time()
 
 def command_callback(recognizer, audio):
-    """This function is called in the background when speech is detected."""
+    #"""This function is called in the background when speech is detected."""
     global target_command, last_speech_time
     
     # If the app has spoken in the last 2 seconds, ignore any audio (it's an echo)
@@ -117,7 +116,7 @@ def command_callback(recognizer, audio):
     except sr.RequestError:
         textToSpeech("Sorry, the speech service is unavailable.")
 
-    
+
 face_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + "haarcascade_frontalface_default.xml")
 eyes_classifier = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_eye.xml')
 
@@ -234,7 +233,7 @@ def main_application():
         print(f"Ambient noise adjustment complete.")
 
     stop_listening = r.listen_in_background(microphone, command_callback)
-    textToSpeech("The camera is on. Please say a command.")
+    textToSpeech("The camera is on. Please say a command like top left or center.")
 
     last_guidance_time = time.time()  # Start a timer to create a "quiet period" for the welcome message
     debug = True
@@ -249,8 +248,7 @@ def main_application():
         if not target_command:
             # STATE 1: WAITING FOR A COMMAND
             draw_all_boxes(video_frame) 
-            cv2.putText(video_frame, "Listening for a command...", (10, 30), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
-
+        
             
         else:
             # STATE 2: GUIDING THE USER
@@ -262,7 +260,7 @@ def main_application():
             target_rect = quadrants[target_command]
             draw_box_functions[target_command](video_frame)
             
-            # --- YOUR ORIGINAL LOGIC STARTS HERE ---
+            # YOUR ORIGINAL LOGIC STARTS HERE
             faces = detect_face(video_frame, debug) # Using your original function call
             
             if len(faces) > 0:
@@ -275,14 +273,14 @@ def main_application():
                 is_face_straight = False
 
                 if len(eyes) >= 2:
-                    # This is your original angle calculation logic
+                    # This is our original angle calculation logic
                     left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
                     deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
                     
                     if abs(deg) < 0.2:
                         is_face_straight = True
 
-                    # This is your original debug drawing logic for the angle
+                    # This is our original debug drawing logic for the angle
                     if debug:
                         center_x, center_y = (x + w/2), (y + h/2)
                         x_diff = h/2 * math.cos(deg + 90 * math.pi / 180.0)
@@ -291,7 +289,7 @@ def main_application():
                         p2_x, p2_y = center_x - x_diff, center_y - y_diff
                         cv2.line(video_frame, (int(p1_x), int(p1_y)), (int(p2_x), int(p2_y)), (255, 0, 0), 5)
                 
-                # --- NEW LOGIC USING THE RESULTS ---
+                #  NEW LOGIC USING THE RESULTS 
                 if is_in_position and is_face_straight:
                     textToSpeech("Perfect, hold still!"); save_photo(original_frame_for_photo, target_command); textToSpeech("Photo taken!"); break
                 
