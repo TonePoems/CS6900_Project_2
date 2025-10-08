@@ -210,7 +210,7 @@ def save_photo(img, aux_text):
     cv2.imwrite(title, img)
 
 
-# --- MODIFIED MAIN LOOP ---
+# MODIFIED MAIN LOOP
 def main_application():
     """This function runs the main application workflow with all features combined."""
     global target_command, stop_listening
@@ -237,6 +237,8 @@ def main_application():
 
     last_guidance_time = time.time()  # Start a timer to create a "quiet period" for the welcome message
     debug = True
+    last_face_position = None # To store the (x, y) of the face from the last frame
+    face_still_start_time = None # To track how long the face has been still
     
     while True:
         result, video_frame = video_capture.read()
@@ -263,48 +265,73 @@ def main_application():
             # YOUR ORIGINAL LOGIC STARTS HERE
             faces = detect_face(video_frame, debug) # Using your original function call
             
-            if len(faces) > 0:
-                face = faces[0]
-                (x, y, w, h) = face
-                
-                eyes = detect_eyes(video_frame, face, debug) # Using your original function call
-                
-                is_in_position = (target_rect[0] < (x + w // 2) < target_rect[2]) and (target_rect[1] < (y + h // 2) < target_rect[3])
-                is_face_straight = False
 
+            if len(faces) > 0:
+                face = faces[0]; (x, y, w, h) = face
+                current_face_center = (x + w // 2, y + h // 2)
+                
+                is_in_position = (target_rect[0] < current_face_center[0] < target_rect[2]) and (target_rect[1] < current_face_center[1] < target_rect[3])
+                eyes = detect_eyes(video_frame, face, debug)
+                is_face_straight = False
                 if len(eyes) >= 2:
-                    # This is our original angle calculation logic
                     left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
                     deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
-                    
                     if abs(deg) < 0.2:
                         is_face_straight = True
-
-                    # This is our original debug drawing logic for the angle
-                    if debug:
-                        center_x, center_y = (x + w/2), (y + h/2)
-                        x_diff = h/2 * math.cos(deg + 90 * math.pi / 180.0)
-                        y_diff = h/2 * math.sin(deg + 90 * math.pi / 180.0)
-                        p1_x, p1_y = center_x + x_diff, center_y + y_diff
-                        p2_x, p2_y = center_x - x_diff, center_y - y_diff
-                        cv2.line(video_frame, (int(p1_x), int(p1_y)), (int(p2_x), int(p2_y)), (255, 0, 0), 5)
                 
-                #  NEW LOGIC USING THE RESULTS 
-                if is_in_position and is_face_straight:
-                    textToSpeech("Perfect, hold still!"); save_photo(original_frame_for_photo, target_command); textToSpeech("Photo taken!"); break
+                # NEW MOVEMENT DETECTION LOGIC
+                movement_threshold = 10 # Pixels
                 
-                elif time.time() - last_guidance_time > 2:
-                    # ... (guidance logic remains the same) ...
-                    guidance_message = ""
-                    if not is_in_position:
-                         if (y + h // 2) < target_rect[1]: guidance_message += "Move down. "
-                         elif (y + h // 2) > target_rect[3]: guidance_message += "Move up. "
-                         if (x + w // 2) < target_rect[0]: guidance_message += "Move to your right. "
-                         elif (x + w // 2) > target_rect[2]: guidance_message += "Move to your left. "
-                    elif not is_face_straight: guidance_message = "Please level your head."
-                    elif len(eyes) < 2: guidance_message = "Please face the camera."
-                    if guidance_message:
-                        textToSpeech(guidance_message); last_guidance_time = time.time()
+                if last_face_position is not None:
+                    # Calculate the distance the face has moved since the last frame
+                    distance_moved = math.sqrt((current_face_center[0] - last_face_position[0])**2 + (current_face_center[1] - last_face_position[1])**2)
+                    
+                    if distance_moved < movement_threshold:
+                        # If the face is still, start or continue the stillness timer
+                        if face_still_start_time is None:
+                            face_still_start_time = time.time()
+                    else:
+                        # If the face is moving, reset the stillness timer
+                        face_still_start_time = None
+                
+                # Update the last position for the next frame's calculation
+                last_face_position = current_face_center
+                
+                
+                # Check if the face has been still for over a second
+                if face_still_start_time is not None and (time.time() - face_still_start_time > 1.0):
+                    # Check if enough time has passed since the LAST command to avoid spamming
+                    if time.time() - last_guidance_time > 3:
+                        # SUCCESS CONDITION 
+                        if is_in_position and is_face_straight:
+                            textToSpeech("Perfect, hold still!")
+                            save_photo(original_frame_for_photo, target_command)
+                            textToSpeech("Photo taken!")
+                            break
+                        
+                        # GUIDANCE LOGIC 
+                        guidance_message = ""
+                        if not is_in_position:
+                             if current_face_center[1] < target_rect[1]: guidance_message += "Move down. "
+                             elif current_face_center[1] > target_rect[3]: guidance_message += "Move up. "
+                             if current_face_center[0] < target_rect[0]: guidance_message += "Move to your right. "
+                             elif current_face_center[0] > target_rect[2]: guidance_message += "Move to your left. "
+                        elif not is_face_straight: guidance_message = "Please level your head."
+                        elif len(eyes) < 2: guidance_message = "Please face the camera."
+                        
+                        if guidance_message:
+                            textToSpeech(guidance_message)
+                            last_guidance_time = time.time()
+                            # Reset stillness timer after speaking to wait for the next stop
+                            face_still_start_time = None 
+            else:
+                # If the face is lost from the frame, reset the tracking variables
+                last_face_position = None
+                face_still_start_time = None
+                if time.time() - last_guidance_time > 5:
+                    textToSpeech("I can't see your face.")
+                    last_guidance_time = time.time()
+            
 
         cv2.imshow("Selfie Helper", video_frame)
         if cv2.waitKey(1) & 0xFF == ord("q"): break
