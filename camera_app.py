@@ -273,6 +273,7 @@ def main_application():
 
     # 3. MAIN APPLICATION LOOP
     last_guidance_time = 0
+    debug = False
     
     while True:
         result, video_frame = video_capture.read()
@@ -298,11 +299,11 @@ def main_application():
             # (The rest of the guidance logic is the same as before)
             target_rect = quadrants[target_command]
             draw_box_functions[target_command](video_frame)
-            faces = detect_face(video_frame)
+            faces = detect_face(video_frame, debug)
             if len(faces) > 0:
                 face = faces[0]
                 is_in_position = (target_rect[0] < (face[0] + face[2] // 2) < target_rect[2]) and (target_rect[1] < (face[1] + face[3] // 2) < target_rect[3])
-                eyes = detect_eyes(video_frame, face)
+                eyes = detect_eyes(video_frame, face, debug)
                 is_face_straight = False
                 deg = None  
                 if len(eyes) == 2:
@@ -310,6 +311,21 @@ def main_application():
                     deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
                     if abs(deg) < 0.15:
                         is_face_straight = True
+
+                    if debug:
+                        # Draw angle on face
+                        (x, y, w, h) = face
+                        center_x, center_y = (x + w/2), (y + h/2)  # position at center of face
+
+                        x_diff = h/2 * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
+                        y_diff = h/2 * math.sin(deg+90 * math.pi / 180.0)
+                        # Draw out lines up and down from the center point
+                        p1_x = center_x + x_diff
+                        p1_y = center_y + y_diff
+                        p2_x = center_x - x_diff
+                        p2_y = center_y - y_diff
+                        #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
+                        cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
                 
                 if is_in_position and is_face_straight:
                     textToSpeech("Perfect, hold still!")
@@ -332,8 +348,12 @@ def main_application():
                         last_guidance_time = time.time()
 
         cv2.imshow("Selfie Helper", video_frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"):
+
+        k = cv2.waitKey(1)
+        if k == ord('q'):  # q to stop
             break
+        elif k == ord('d'):  # d for debug mode  
+            debug = not debug  # toggle debug
 
     # CLEANUP
     video_capture.release()

@@ -19,6 +19,10 @@ This tool can be run with the following command
 python camera_app.py
 ```
 
+While in the application you can use the following commands:
+- `q`: Quit the application
+- `d`: Debug mode will draw bounding boxes for the face, eyes, and the angle of the head
+
 ## Logic Explainers
 Explainers for how we approached several open ended portions of the project.
 
