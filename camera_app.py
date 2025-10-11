@@ -4,7 +4,20 @@ import datetime
 import math
 import speech_recognition as sr
 import time
-import subprocess
+import torch
+from transformers import pipeline
+import sounddevice as sd
+
+
+# NEW HUGGING FACE SETUP 
+# Load the Text-to-Speech pipeline from Hugging Face
+print("Loading Text-to-Speech model...")
+tts_pipeline = pipeline("text-to-speech", model="microsoft/speecht5_tts", device="cuda" if torch.cuda.is_available() else "cpu")
+
+# Create a consistent, random speaker embedding ONCE.
+print("Creating a consistent speaker voice...")
+speaker_embedding = torch.randn((1, 512))
+print("Model and voice loaded.")
 
 # create a speech recognition object
 r = sr.Recognizer()
@@ -12,6 +25,7 @@ r = sr.Recognizer()
 # Global variable to hold the command from the background thread
 target_command = ""
 last_speech_time = 0
+stop_listening = None
 
 # Use microphone to get input from a user
 # Optional arg for duration of audio length
@@ -83,25 +97,31 @@ def textToCommand(text):
 # print(commandInput)
 
 
-def textToSpeech(text):
-     #"""Uses a non-blocking PowerShell command to speak text without freezing the app."""
-     global last_speech_time
-     print(f"SAYING: {text}")
-     text = text.replace("'", "''")
-     command = f'powershell -Command "Add-Type –AssemblyName System.Speech; (New-Object System.Speech.Synthesis.SpeechSynthesizer).Speak(\'{text}\');"'
-    
-    # Popen runs the command without waiting, so the video doesn't freeze
-     subprocess.Popen(["powershell", "-Command", command], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    
-    # Record the time we started speaking
-     last_speech_time = time.time()
+## NEW TEXT TO SPEECH FUNCTION
+def textToSpeech(text, wait=False):
+    """
+    Uses a Hugging Face model to generate and play speech without freezing the app.
+    """
+    global last_speech_time
+    print(f"SAYING: {text}")
+
+    # Generate the audio from the text using the AI model
+    speech = tts_pipeline(text, forward_params={"speaker_embeddings": speaker_embedding})
+
+    # Play the generated audio. 
+    sd.play(speech["audio"], samplerate=speech["sampling_rate"])
+    if wait:
+        sd.wait() 
+
+    # Record the time we started speaking to prevent feedback loops
+    last_speech_time = time.time()
 
 def command_callback(recognizer, audio):
     #"""This function is called in the background when speech is detected."""
     global target_command, last_speech_time
     
-    # If the app has spoken in the last 2 seconds, ignore any audio (it's an echo)
-    if time.time() - last_speech_time < 7:
+    # If the app has spoken in the last 5 seconds, ignore any audio (it's an echo)
+    if time.time() - last_speech_time < 5:
         return
 
     if target_command: return
@@ -111,6 +131,8 @@ def command_callback(recognizer, audio):
         command = textToCommand(speech)
         if command:
             target_command = command
+            if stop_listening:
+                stop_listening(wait_for_stop=False)
     except sr.UnknownValueError:
         textToSpeech("I did not understand that. Please say a command again.")
     except sr.RequestError:
@@ -276,7 +298,7 @@ def main_application():
                 if len(eyes) >= 2:
                     left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
                     deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
-                    if abs(deg) < 0.2:
+                    if abs(deg) < 0.25: #Increased from 0.2
                         is_face_straight = True
                 
                 # NEW MOVEMENT DETECTION LOGIC
@@ -304,9 +326,9 @@ def main_application():
                     if time.time() - last_guidance_time > 3:
                         # SUCCESS CONDITION 
                         if is_in_position and is_face_straight:
-                            textToSpeech("Perfect, hold still!")
+                            textToSpeech("Perfect, hold still!", wait=True) # Add wait=True
                             save_photo(original_frame_for_photo, target_command)
-                            textToSpeech("Photo taken!")
+                            textToSpeech("Photo taken!", wait=True) # Add wait=True
                             break
                         
                         # GUIDANCE LOGIC 
