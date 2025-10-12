@@ -229,8 +229,7 @@ def main_application():
         
     time.sleep(1)
     
-    width, height = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)), 
-    int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    width, height = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
     quadrants = { "top_left": (0, 0, width // 2, height // 2), 
                  "top_right": (width // 2, 0, width, height // 2), 
