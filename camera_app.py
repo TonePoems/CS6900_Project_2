@@ -300,6 +300,21 @@ def main_application():
                     deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
                     if abs(deg) < 0.25: #Increased from 0.2
                         is_face_straight = True
+
+                    if debug:
+                        # Draw angle on face
+                        (x, y, w, h) = face
+                        center_x, center_y = (x + w/2), (y + h/2)  # position at center of face
+
+                        x_diff = h/2 * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
+                        y_diff = h/2 * math.sin(deg+90 * math.pi / 180.0)
+                        # Draw out lines up and down from the center point
+                        p1_x = center_x + x_diff
+                        p1_y = center_y + y_diff
+                        p2_x = center_x - x_diff
+                        p2_y = center_y - y_diff
+                        #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
+                        cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
                 
                 # NEW MOVEMENT DETECTION LOGIC
                 movement_threshold = 10 # Pixels
@@ -356,7 +371,12 @@ def main_application():
             
 
         cv2.imshow("Selfie Helper", video_frame)
-        if cv2.waitKey(1) & 0xFF == ord("q"): break
+
+        k = cv2.waitKey(1)
+        if k == ord('q'):  # q to stop
+            break
+        elif k == ord('d'):  # d for debug mode  
+            debug = not debug  # toggle debug
 
     if stop_listening:
         stop_listening(wait_for_stop=True)
