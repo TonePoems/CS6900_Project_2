@@ -81,20 +81,6 @@ def textToCommand(text):
     return ""  # error case
 
 
-# print("top_left: " + textToCommand("top left"))
-# print("top_left: " + textToCommand("left top"))
-# print("center: " + textToCommand("center"))
-# print("center: " + textToCommand("central"))
-# print("bottom_right: " + textToCommand("lower right"))
-# print("top_left: " + textToCommand("right left bottom top"))  # should take the last command in each axis
-#print("top_left: " + textToCommand("right no left and bottom no top"))  # should take the last command in each axis
-# print("center: " + textToCommand("top center"))
-
-# Demo speechToText capability, along with textToCommand
-# speechInput = speechToText()
-# commandInput = textToCommand(speechInput)
-# print(speechInput)
-# print(commandInput)
 
 
 ## NEW TEXT TO SPEECH FUNCTION
@@ -243,10 +229,19 @@ def main_application():
         
     time.sleep(1)
     
-    width, height = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+    width, height = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)), 
+    int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
     
-    quadrants = { "top_left": (0, 0, width // 2, height // 2), "top_right": (width // 2, 0, width, height // 2), "bottom_left": (0, height // 2, width // 2, height), "bottom_right": (width // 2, height // 2, width, height), "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4) }
-    draw_box_functions = { "top_left": draw_top_left_box, "top_right": draw_top_right_box, "bottom_left": draw_bottom_left_box, "bottom_right": draw_bottom_right_box, "center": draw_center_box }
+    quadrants = { "top_left": (0, 0, width // 2, height // 2), 
+                 "top_right": (width // 2, 0, width, height // 2), 
+                 "bottom_left": (0, height // 2, width // 2, height), 
+                 "bottom_right": (width // 2, height // 2, width, height), 
+                 "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4) }
+    draw_box_functions = { "top_left": draw_top_left_box, 
+                          "top_right": draw_top_right_box, 
+                          "bottom_left": draw_bottom_left_box, 
+                          "bottom_right": draw_bottom_right_box, 
+                          "center": draw_center_box }
 
     microphone = sr.Microphone()
     with microphone as source:
@@ -349,12 +344,18 @@ def main_application():
                         # GUIDANCE LOGIC 
                         guidance_message = ""
                         if not is_in_position:
-                             if current_face_center[1] < target_rect[1]: guidance_message += "Move down. "
-                             elif current_face_center[1] > target_rect[3]: guidance_message += "Move up. "
-                             if current_face_center[0] < target_rect[0]: guidance_message += "Move to your right. "
-                             elif current_face_center[0] > target_rect[2]: guidance_message += "Move to your left. "
-                        elif not is_face_straight: guidance_message = "Please level your head."
-                        elif len(eyes) < 2: guidance_message = "Please face the camera."
+                             if current_face_center[1] < target_rect[1]: 
+                                 guidance_message += "Move down. "
+                             elif current_face_center[1] > target_rect[3]: 
+                                 guidance_message += "Move up. "
+                             if current_face_center[0] < target_rect[0]: 
+                                 guidance_message += "Move to your right. "
+                             elif current_face_center[0] > target_rect[2]: 
+                                 guidance_message += "Move to your left. "
+                        elif not is_face_straight: 
+                            guidance_message = "Please level your head."
+                        elif len(eyes) < 2: 
+                            guidance_message = "Please face the camera."
                         
                         if guidance_message:
                             textToSpeech(guidance_message)
