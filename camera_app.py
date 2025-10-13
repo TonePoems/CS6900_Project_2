@@ -101,7 +101,8 @@ def textToSpeech(text, wait=False):
 
 def command_callback(recognizer, audio):
     #"""This function is called in the background when speech is detected."""
-    global target_command, last_speech_time
+    global target_command, last_speech_time, stop_listening
+    
     
     # If the app has spoken in the last 5 seconds, ignore any audio (it's an echo)
     if time.time() - last_speech_time < 5:
@@ -111,11 +112,17 @@ def command_callback(recognizer, audio):
     try:
         speech = recognizer.recognize_google(audio)
         print(f"I heard you say: '{speech}'")
+
+        textToSpeech(f"I heard you say... {speech}")
+
         command = textToCommand(speech)
         if command:
             target_command = command
             if stop_listening:
                 stop_listening(wait_for_stop=False)
+        else:
+            # If the text was not a valid command
+            textToSpeech("That is not a valid command. Please try again.")
     except sr.UnknownValueError:
         textToSpeech("I did not understand that. Please say a command again.")
     except sr.RequestError:
@@ -277,35 +284,13 @@ def main_application():
             
             faces = detect_face(video_frame, debug) # Using your original function call
             
+
             if len(faces) > 0:
                 face = faces[0]; (x, y, w, h) = face
                 current_face_center = (x + w // 2, y + h // 2)
                 
-                is_in_position = (target_rect[0] < current_face_center[0] < target_rect[2]) and (target_rect[1] < current_face_center[1] < target_rect[3])
-                eyes = detect_eyes(video_frame, face, debug)
-                is_face_straight = False
-                if len(eyes) >= 2:
-                    left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
-                    deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
-                    if abs(deg) < 0.25: #Increased from 0.2
-                        is_face_straight = True
-
-                    if debug:
-                        # Draw angle on face
-                        (x, y, w, h) = face
-                        center_x, center_y = (x + w/2), (y + h/2)  # position at center of face
-
-                        x_diff = h/2 * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
-                        y_diff = h/2 * math.sin(deg+90 * math.pi / 180.0)
-                        # Draw out lines up and down from the center point
-                        p1_x = center_x + x_diff
-                        p1_y = center_y + y_diff
-                        p2_x = center_x - x_diff
-                        p2_y = center_y - y_diff
-                        #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
-                        cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
-                
-                movement_threshold = 10 # Pixels
+                # --- MOVEMENT DETECTION LOGIC ---
+                movement_threshold = 10 # How many pixels the face can move and still be "still"
                 
                 if last_face_position is not None:
                     # Calculate the distance the face has moved since the last frame
@@ -318,44 +303,46 @@ def main_application():
                     else:
                         # If the face is moving, reset the stillness timer
                         face_still_start_time = None
-                 
                 
                 # Update the last position for the next frame's calculation
                 last_face_position = current_face_center
                 
-                
-                # Check if the face has been still for over a second
+                # --- GUIDANCE TRIGGER (When face has been still for over a second) ---
                 if face_still_start_time is not None and (time.time() - face_still_start_time > 1.0):
                     # Check if enough time has passed since the LAST command to avoid spamming
                     if time.time() - last_guidance_time > 3:
-                        # SUCCESS CONDITION 
+                        
+                        # --- THIS IS THE FIX: Re-check position and angle right before speaking ---
+                        is_in_position = (target_rect[0] < current_face_center[0] < target_rect[2]) and (target_rect[1] < current_face_center[1] < target_rect[3])
+                        eyes = detect_eyes(video_frame, face, debug)
+                        is_face_straight = False
+                        if len(eyes) >= 2:
+                            left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
+                            deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
+                            if abs(deg) < 0.35: # Using the more forgiving angle
+                                is_face_straight = True
+                        
+                        # --- MAKE DECISION BASED ON CURRENT, UP-TO-DATE INFO ---
                         if is_in_position and is_face_straight:
-                            textToSpeech("Perfect, hold still!", wait=True) # Add wait=True
+                            textToSpeech("Perfect, hold still!", wait=True)
                             save_photo(original_frame_for_photo, target_command)
-                            textToSpeech("Photo taken!", wait=True) # Add wait=True
+                            textToSpeech("Photo taken!", wait=True)
                             break
                         
-                        # GUIDANCE LOGIC 
                         guidance_message = ""
                         if not is_in_position:
-                             if current_face_center[1] < target_rect[1]: 
-                                 guidance_message += "Move down. "
-                             elif current_face_center[1] > target_rect[3]: 
-                                 guidance_message += "Move up. "
-                             if current_face_center[0] < target_rect[0]: 
-                                 guidance_message += "Move to your right. "
-                             elif current_face_center[0] > target_rect[2]: 
-                                 guidance_message += "Move to your left. "
-                        elif not is_face_straight: 
-                            guidance_message = "Please level your head."
-                        elif len(eyes) < 2: 
-                            guidance_message = "Please face the camera."
+                             if current_face_center[1] < target_rect[1]: guidance_message += "Move down. "
+                             elif current_face_center[1] > target_rect[3]: guidance_message += "Move up. "
+                             if current_face_center[0] < target_rect[0]: guidance_message += "Move to your right. "
+                             elif current_face_center[0] > target_rect[2]: guidance_message += "Move to your left. "
+                        elif not is_face_straight: guidance_message = "Please level your head."
+                        elif len(eyes) < 2: guidance_message = "Please face the camera."
                         
                         if guidance_message:
                             textToSpeech(guidance_message)
                             last_guidance_time = time.time()
-                            # Reset stillness timer after speaking to wait for the next stop
                             face_still_start_time = None 
+            
             else:
                 # If the face is lost from the frame, reset the tracking variables
                 last_face_position = None
