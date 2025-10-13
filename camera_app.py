@@ -289,7 +289,7 @@ def main_application():
                 face = faces[0]; (x, y, w, h) = face
                 current_face_center = (x + w // 2, y + h // 2)
                 
-                # --- MOVEMENT DETECTION LOGIC ---
+                # MOVEMENT DETECTION LOGIC
                 movement_threshold = 10 # How many pixels the face can move and still be "still"
                 
                 if last_face_position is not None:
@@ -322,7 +322,7 @@ def main_application():
                             if abs(deg) < 0.35: # Using the more forgiving angle
                                 is_face_straight = True
                         
-                        # --- MAKE DECISION BASED ON CURRENT, UP-TO-DATE INFO ---
+                        # MAKE DECISION BASED ON CURRENT, UP-TO-DATE INFO 
                         if is_in_position and is_face_straight:
                             textToSpeech("Perfect, hold still!", wait=True)
                             save_photo(original_frame_for_photo, target_command)
