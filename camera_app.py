@@ -9,7 +9,6 @@ from transformers import pipeline
 import sounddevice as sd
 
 
-# NEW HUGGING FACE SETUP 
 # Load the Text-to-Speech pipeline from Hugging Face
 print("Loading Text-to-Speech model...")
 tts_pipeline = pipeline("text-to-speech", model="microsoft/speecht5_tts", device="cuda" if torch.cuda.is_available() else "cpu")
@@ -81,9 +80,6 @@ def textToCommand(text):
     return ""  # error case
 
 
-
-
-## NEW TEXT TO SPEECH FUNCTION
 def textToSpeech(text, wait=False):
     """
     Uses a Hugging Face model to generate and play speech without freezing the app.
@@ -101,6 +97,7 @@ def textToSpeech(text, wait=False):
 
     # Record the time we started speaking to prevent feedback loops
     last_speech_time = time.time()
+
 
 def command_callback(recognizer, audio):
     #"""This function is called in the background when speech is detected."""
@@ -218,7 +215,7 @@ def save_photo(img, aux_text):
     cv2.imwrite(title, img)
 
 
-# MODIFIED MAIN LOOP
+# Main program controlled here
 def main_application():
     """This function runs the main application workflow with all features combined."""
     global target_command, stop_listening
@@ -267,7 +264,6 @@ def main_application():
             # STATE 1: WAITING FOR A COMMAND
             draw_all_boxes(video_frame) 
         
-            
         else:
             # STATE 2: GUIDING THE USER
             if 'first_guidance' not in locals():
@@ -278,10 +274,8 @@ def main_application():
             target_rect = quadrants[target_command]
             draw_box_functions[target_command](video_frame)
             
-            # YOUR ORIGINAL LOGIC STARTS HERE
             faces = detect_face(video_frame, debug) # Using your original function call
             
-
             if len(faces) > 0:
                 face = faces[0]; (x, y, w, h) = face
                 current_face_center = (x + w // 2, y + h // 2)
@@ -310,7 +304,6 @@ def main_application():
                         #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
                         cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),(255,0,0),5)
                 
-                # NEW MOVEMENT DETECTION LOGIC
                 movement_threshold = 10 # Pixels
                 
                 if last_face_position is not None:
@@ -386,5 +379,3 @@ def main_application():
 if __name__ == "__main__":
     main_application()
 
-
- 
