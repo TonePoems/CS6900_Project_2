@@ -255,6 +255,7 @@ def main_application():
     debug = True
     last_face_position = None # To store the (x, y) of the face from the last frame
     face_still_start_time = None # To track how long the face has been still
+    off_screen_prompt_index = 0
     
     while True:
         result, video_frame = video_capture.read()
@@ -324,6 +325,7 @@ def main_application():
                     else:
                         # If the face is moving, reset the stillness timer
                         face_still_start_time = None
+                 
                 
                 # Update the last position for the next frame's calculation
                 last_face_position = current_face_center
@@ -365,8 +367,22 @@ def main_application():
                 # If the face is lost from the frame, reset the tracking variables
                 last_face_position = None
                 face_still_start_time = None
+
+                # NEW: Give smarter, rotating guidance for off-screen users
                 if time.time() - last_guidance_time > 5:
-                    textToSpeech("I can't see your face.")
+                    # Define a list of helpful prompts
+                    off_screen_prompts = [
+                        "I can't see your face. Please try moving slowly to your left or right.",
+                        "Still can't see you. Please try moving slowly up or down.",
+                        "Still can't find you. Try moving a little closer to the camera."
+                    ]
+                    
+                    # Get the next prompt from the list, cycling through them
+                    prompt = off_screen_prompts[off_screen_prompt_index % len(off_screen_prompts)]
+                    textToSpeech(prompt)
+                    
+                    # Update the index and the timer for the next prompt
+                    off_screen_prompt_index += 1
                     last_guidance_time = time.time()
             
 
