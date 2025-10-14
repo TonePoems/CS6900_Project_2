@@ -113,7 +113,7 @@ def command_callback(recognizer, audio):
         speech = recognizer.recognize_google(audio)
         print(f"I heard you say: '{speech}'")
 
-        textToSpeech(f"I heard you say... {speech}")
+        #textToSpeech(f"I heard you say... {speech}")
 
         command = textToCommand(speech)
         if command:
@@ -234,12 +234,15 @@ def main_application():
     time.sleep(1)
     
     width, height = int(video_capture.get(cv2.CAP_PROP_FRAME_WIDTH)), int(video_capture.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+    eighth_width = width // 8
+    eighth_height = height // 8
     
-    quadrants = { "top_left": (0, 0, width // 2, height // 2), 
-                 "top_right": (width // 2, 0, width, height // 2), 
-                 "bottom_left": (0, height // 2, width // 2, height), 
-                 "bottom_right": (width // 2, height // 2, width, height), 
-                 "center": (width // 4, height // 4, width * 3 // 4, height * 3 // 4) }
+    quadrants = { "top_left": (0 + eighth_width, 0 + eighth_height, width // 2 - eighth_width, height // 2 - eighth_height), 
+                 "top_right": (width // 2 + eighth_width, 0 + eighth_height, width - eighth_width, height // 2 - eighth_height), 
+                 "bottom_left": (0 + eighth_width, height // 2 + eighth_height, width // 2 - eighth_width, height - eighth_height), 
+                 "bottom_right": (width // 2 + eighth_width, height // 2 + eighth_height, width - eighth_width, height - eighth_height), 
+                 "center": (width // 4 + eighth_width, height // 4 + eighth_height, width * 3 // 4 - eighth_width, height * 3 // 4 - eighth_height) }
     draw_box_functions = { "top_left": draw_top_left_box, 
                           "top_right": draw_top_right_box, 
                           "bottom_left": draw_bottom_left_box, 
@@ -256,7 +259,7 @@ def main_application():
     textToSpeech("The camera is on. Please say a command like top left or center.")
 
     last_guidance_time = time.time()  # Start a timer to create a "quiet period" for the welcome message
-    debug = True
+    debug = False
     last_face_position = None # To store the (x, y) of the face from the last frame
     face_still_start_time = None # To track how long the face has been still
     off_screen_prompt_index = 0
@@ -306,29 +309,44 @@ def main_application():
                 
                 # Update the last position for the next frame's calculation
                 last_face_position = current_face_center
-                
+
+                is_in_position = (target_rect[0] < current_face_center[0] < target_rect[2]) and (target_rect[1] < current_face_center[1] < target_rect[3])
+                eyes = detect_eyes(video_frame, face, debug)
+                is_face_straight = False
+                if len(eyes) >= 2:
+                    left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
+                    deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
+                    angle_color = (0,0,255)  # red unless angle is straight (CV uses BGR)
+                    if abs(deg) < 0.2:
+                        is_face_straight = True
+                        angle_color = (255,0,0)  # blue if straight (CV uses BGR)
+
+                    if debug:
+                        # Draw angle on face
+                        center_x, center_y = (x + w/2), (y + h/2)  # position at center of face
+
+                        x_diff = h/2 * math.cos(deg+90 * math.pi / 180.0)  # h (height of face) as length and add 90 to get vertical line 
+                        y_diff = h/2 * math.sin(deg+90 * math.pi / 180.0)
+                        # Draw out lines up and down from the center point
+                        p1_x = center_x + x_diff
+                        p1_y = center_y + y_diff
+                        p2_x = center_x - x_diff
+                        p2_y = center_y - y_diff
+                        #print(f'({p1_x},{p1_y}),({p2_x},{p2_y})')
+                        cv2.line(video_frame,(int(p1_x),int(p1_y)),(int(p2_x),int(p2_y)),angle_color,5)
+            
                 # --- GUIDANCE TRIGGER (When face has been still for over a second) ---
                 if face_still_start_time is not None and (time.time() - face_still_start_time > 1.0):
+                     
+                    # MAKE DECISION BASED ON CURRENT, UP-TO-DATE INFO 
+                    if is_in_position and is_face_straight:
+                        textToSpeech("Perfect, hold still!", wait=True)
+                        save_photo(original_frame_for_photo, target_command)
+                        textToSpeech("Photo taken!", wait=True)
+                        break
+
                     # Check if enough time has passed since the LAST command to avoid spamming
                     if time.time() - last_guidance_time > 3:
-                        
-                        # --- THIS IS THE FIX: Re-check position and angle right before speaking ---
-                        is_in_position = (target_rect[0] < current_face_center[0] < target_rect[2]) and (target_rect[1] < current_face_center[1] < target_rect[3])
-                        eyes = detect_eyes(video_frame, face, debug)
-                        is_face_straight = False
-                        if len(eyes) >= 2:
-                            left_eye, right_eye = (eyes[0], eyes[1]) if eyes[0][0] > eyes[1][0] else (eyes[1], eyes[0])
-                            deg = math.atan2((left_eye[1] - right_eye[1]), (left_eye[0] - right_eye[0]))
-                            if abs(deg) < 0.35: # Using the more forgiving angle
-                                is_face_straight = True
-                        
-                        # MAKE DECISION BASED ON CURRENT, UP-TO-DATE INFO 
-                        if is_in_position and is_face_straight:
-                            textToSpeech("Perfect, hold still!", wait=True)
-                            save_photo(original_frame_for_photo, target_command)
-                            textToSpeech("Photo taken!", wait=True)
-                            break
-                        
                         guidance_message = ""
                         if not is_in_position:
                              if current_face_center[1] < target_rect[1]: guidance_message += "Move down. "
