@@ -9,6 +9,8 @@ from transformers import pipeline
 import sounddevice as sd
 
 
+torch.manual_seed(1)
+
 # Load the Text-to-Speech pipeline from Hugging Face
 print("Loading Text-to-Speech model...")
 tts_pipeline = pipeline("text-to-speech", model="microsoft/speecht5_tts", device="cuda" if torch.cuda.is_available() else "cpu")
